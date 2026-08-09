@@ -21,6 +21,45 @@ Most artificial characters are configured: you write a personality, and the char
 that description until you rewrite it. This engine takes the opposite approach — character
 is *computed*, as the residue of what an agent has lived through.
 
+<table>
+<tr>
+<td width="50%" valign="top">
+
+### What the paper reports
+
+Three findings, all emergent from the dynamics rather than specified:
+
+**Bond strengths spanning orders of magnitude** — relationships differentiate on their own; nothing assigns them tiers.
+
+**A trimodal distribution of inherited traits** — descendants cluster into three temperamental groups without any rule producing three of anything.
+
+**Population-level shifts after loss** — grief propagates through the bond graph and moves the constitution of agents who were never directly involved.
+
+</td>
+<td width="50%" valign="top">
+
+### Where this could be used
+
+Anywhere a character must *stay itself* across a long interaction, and be changed by it:
+
+**Game characters** — state per (character, player) pair is fixed-size regardless of history. An NPC remembering a betrayal from forty hours ago costs the same as one you just met.
+
+**Social & assistive robotics** — 188 bytes per agent, no GPU, no network. It fits on the robot and survives a reboot.
+
+**Conversational agents** — state computed outside the model; the model speaks *from* it rather than inferring it from a transcript.
+
+**Multi-agent simulation** — bonds, grief propagation, and trait inheritance across generations, none of it scripted.
+
+**Interactive narrative** — disposition toward the reader computed from what happened, not branched from flags.
+
+</td>
+</tr>
+</table>
+
+![architecture](figures/fig1_architecture.png)
+
+Figures from the paper are in [`figures/`](figures/).
+
 The state model is drawn from classical Indian frameworks for emotional and behavioral
 dynamics, mapped onto computable quantities.
 
@@ -85,20 +124,43 @@ agent already carrying fear amplifies incoming fear more than a calm one. An age
 the source of an event feels it harder in both directions. Identical input, different
 outcome, determined entirely by accumulated history.
 
-## What the paper reports
+## The dynamics
 
-Three findings, all emergent from the dynamics rather than specified:
+Emotions here are not independent sliders. The engine runs four coupled layers every tick,
+which is what makes the state behave like a system rather than a scoreboard.
 
-- **Bond strengths spanning multiple orders of magnitude** — relationships differentiate on
-  their own; nothing assigns them tiers.
-- **A trimodal distribution of inherited behavioral traits** — descendants cluster into three
-  temperamental groups without any rule producing three of anything.
-- **Population-level psychological shifts following significant loss** — grief propagates
-  through the bond graph and moves the constitution of agents who were not directly involved.
+**Inter-rasa coupling — 18 relationships.** Sustained intensity in one rasa pulls others.
+Wrath suppresses peace; peace damps both fear and wrath; compassion moderates wrath; courage
+counters fear while fear suppresses courage; envy corrodes love; delusion feeds greed;
+detachment damps craving. These are coefficients in a coupling matrix, not conditional rules,
+so the interactions compose without anyone enumerating the combinations.
 
-![architecture](figures/fig1_architecture.png)
+```c
+{ RASA_KRODHA,    RASA_SHANTA,    -0.012f },  /* wrath suppresses peace      */
+{ RASA_VEERA,     RASA_BHAYANAKA, -0.008f },  /* courage counters fear       */
+{ RASA_MATSARYA,  RASA_SHRINGARA, -0.006f },  /* envy corrodes love          */
+{ RASA_BHAYANAKA, RASA_UDVEGA,     0.004f },  /* sustained fear → anxiety    */
+```
 
-Figures from the paper are in [`figures/`](figures/).
+**Compound emergence.** Complex states are not injectable — they can only form. *Vishada*
+(despair) emerges when grief, delusion, isolation, and fear stay jointly elevated past a
+threshold, and is eroded by joy. *Titiksha* (endurance) forms out of sustained courage and
+compassion. *Vairagya* (detachment) forms from peace after surviving despair. Nothing can
+hand an agent despair directly; it has to be lived into.
+
+**Per-rasa decay — 23 half-lives.** Every rasa fades at its own rate. Peace (*shanta*, 0.003)
+lingers for a very long time; wonder (*adbhuta*, 0.018) is nearly gone in a few ticks;
+aversion (*dvesha*, 0.004) is among the stickiest states in the system. Temperament falls out
+of these rates as much as it does from any single event.
+
+**Constitutional drift.** The guna balance itself moves over a lifetime. Bonded presence
+raises sattva; proximity to death raises tamas; prolonged isolation raises rajas or tamas
+depending on what the agent already is. Sustained rasas feed back into the gunas, so the
+deepest layer — the one that governs how hard *everything else* lands — is itself shaped by
+accumulated experience. An agent's sensitivity at hour fifty is a product of its first
+forty-nine.
+
+That last loop is the reason character compounds instead of merely accumulating.
 
 ## Build and run
 
@@ -137,78 +199,12 @@ uint64_t h = get_world_hash();              // determinism check
 suggestion and as tone/formality/emotional-color, which is how a renderer or a language
 model consumes it without the state living inside the model.
 
-## Where this could be used
-
-The engine is domain-agnostic: it holds relational and emotional state for an agent and
-exposes it as structured output. Anywhere a character needs to *stay itself* across a long
-interaction, and to be changed by what happens in it, is a candidate.
-
-**Game and virtual characters.** The state per (character, player) pair is fixed-size and
-independent of how long they've interacted — an NPC that remembers a betrayal from forty
-hours ago costs the same as one you just met. That property matters at multiplayer scale,
-where storing full interaction history per pair does not hold up.
-
-**Multi-agent and social simulation.** The paper's own domain. Bonds, grief propagation, and
-trait inheritance across generations emerge from the dynamics; nothing scripts them. Useful
-for modelling population-level psychological effects rather than individual behaviour.
-
-**Conversational agents.** State computed outside the language model, with the model
-generating *from* the state rather than inferring it from a transcript. Demonstrated in a live
-system ([meet.samskriti.app](https://meet.samskriti.app)) via a reduced Python port.
-
-**Social and assistive robotics.** A robot in a long-term domestic or care setting has the
-same problem: it should be shaped by months of interaction with a specific person, on hardware
-that cannot hold that history in context. An agent's exported state is **188 bytes**, plus 36
-bytes per bond — serialisable, inspectable, and dependency-free, with no GPU and no network
-call. It fits on the robot, and it survives a reboot.
-
-**Interactive narrative.** Characters whose disposition toward the reader is computed from
-what actually happened, rather than branched from flags.
-
 ## Determinism
 
 Given a fixed seed the engine is bit-reproducible; `get_world_hash()` returns a checksum of
 world state and the test suite asserts against a known value. This matters for the thesis:
 the character trajectory is a computed, replayable function of its experience history, not a
 sample from a distribution.
-
-## The dynamics
-
-Emotions here are not independent sliders. The engine runs four coupled layers every tick,
-which is what makes the state behave like a system rather than a scoreboard.
-
-**Inter-rasa coupling — 18 relationships.** Sustained intensity in one rasa pulls others.
-Wrath suppresses peace; peace damps both fear and wrath; compassion moderates wrath; courage
-counters fear while fear suppresses courage; envy corrodes love; delusion feeds greed;
-detachment damps craving. These are coefficients in a coupling matrix, not conditional rules,
-so the interactions compose without anyone enumerating the combinations.
-
-```c
-{ RASA_KRODHA,    RASA_SHANTA,    -0.012f },  /* wrath suppresses peace      */
-{ RASA_VEERA,     RASA_BHAYANAKA, -0.008f },  /* courage counters fear       */
-{ RASA_MATSARYA,  RASA_SHRINGARA, -0.006f },  /* envy corrodes love          */
-{ RASA_BHAYANAKA, RASA_UDVEGA,     0.004f },  /* sustained fear → anxiety    */
-```
-
-**Compound emergence.** Complex states are not injectable — they can only form. *Vishada*
-(despair) emerges when grief, delusion, isolation, and fear stay jointly elevated past a
-threshold, and is eroded by joy. *Titiksha* (endurance) forms out of sustained courage and
-compassion. *Vairagya* (detachment) forms from peace after surviving despair. Nothing can
-hand an agent despair directly; it has to be lived into.
-
-**Per-rasa decay — 23 half-lives.** Every rasa fades at its own rate. Peace (*shanta*, 0.003)
-lingers for a very long time; wonder (*adbhuta*, 0.018) is nearly gone in a few ticks;
-aversion (*dvesha*, 0.004) is among the stickiest states in the system. Temperament falls out
-of these rates as much as it does from any single event.
-
-**Constitutional drift.** The guna balance itself moves over a lifetime. Bonded presence
-raises sattva; proximity to death raises tamas; prolonged isolation raises rajas or tamas
-depending on what the agent already is. Sustained rasas feed back into the gunas, so the
-deepest layer — the one that governs how hard *everything else* lands — is itself shaped by
-accumulated experience. An agent's sensitivity at hour fifty is a product of its first
-forty-nine.
-
-That last loop is the reason character compounds instead of merely accumulating.
 
 ## What's in this repo
 
