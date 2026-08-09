@@ -22,17 +22,46 @@ that description until you rewrite it. This engine takes the opposite approach �
 is *computed*, as the residue of what an agent has lived through.
 
 The state model is drawn from classical Indian frameworks for emotional and behavioral
-dynamics, mapped onto computable quantities:
+dynamics, mapped onto computable quantities.
 
-| Concept | In this engine |
-|---|---|
-| **rasa** | 23-dimensional emotional state vector, each dimension with its own decay rate |
-| **guna** | three-way constitutional balance (sattva/rajas/tamas) that acts as a *sensitivity multiplier* — the same event lands differently on differently-constituted agents |
-| **samskara** | an impression left by an experience |
-| **vasana** | the tendency that hardens out of repeated samskaras — a habit, in the literal sense |
+### The four concepts, for readers new to them
 
-This is not decorative naming. Samskara and vasana are the actual data structures, and the
-guna vector is a live term in the state-update equation.
+These terms come from Indian philosophical traditions that model inner life differently from
+the way most Western computing does. The relevant difference: they treat the mind not as a
+single thing that *has* states, but as a **layered system in which states arise, interact,
+fade, and — if repeated — harden into disposition**. That is already a description of a
+dynamical system, which is why it ports to code unusually cleanly.
+
+**rasa** — *the felt quality of a state.* From the Natyashastra, a treatise on dramaturgy
+(roughly 200 BCE–200 CE) which catalogued the affective states a performance evokes. Rasa is
+not quite "emotion" in the English sense; it's closer to a distinct flavour of feeling, each
+with its own character and its own natural duration. Here: a **23-dimensional state vector**,
+each dimension decaying at its own rate — peace (`shanta`) fades slowly, wonder (`adbhuta`)
+fades fast.
+
+**guna** — *constitutional mode.* From Samkhya philosophy: three qualities said to compose
+all phenomena in varying proportion. **Sattva** (clarity, balance), **rajas** (activity,
+drive), **tamas** (inertia, density). These are not good/bad — they're modes, and every agent
+is a mixture. Here the guna vector acts as a **sensitivity multiplier**: it determines *how
+hard a given event lands*. A sattva-dominant agent and a tamas-dominant agent receiving the
+identical event end up in different states.
+
+**samskara** — *an impression left by experience.* Literally a groove or imprint. The idea is
+that experience doesn't just pass through; it deposits something that shapes what comes next.
+Here: a **stored trace** carrying valence, intensity, context, and the age at which it formed.
+
+**vasana** — *the tendency a samskara hardens into.* When similar impressions accumulate, they
+consolidate into a latent disposition that biases future behaviour without being consciously
+chosen — a habit, in the strict sense. Here: **clusters formed from repeated samskaras**, and
+they are what the engine reads when deciding how an agent is inclined to act.
+
+The pipeline runs in that order: an event produces **rasa** movement, scaled by **guna**;
+the event deposits a **samskara**; repeated samskaras consolidate into **vasana**; vasana
+shapes how the next event is received.
+
+This is not decorative naming. Samskara and vasana are the actual data structures, the guna
+vector is a live term in the state-update equation, and the rasa decay table is taken from the
+Natyashastra taxonomy rather than invented.
 
 **The central mechanism** is that event magnitude is derived from state rather than looked
 up in a table:
@@ -99,6 +128,38 @@ uint64_t h = get_world_hash();              // determinism check
 suggestion and as tone/formality/emotional-color, which is how a renderer or a language
 model consumes it without the state living inside the model.
 
+## Where this applies
+
+The engine is domain-agnostic: it holds relational and emotional state for an agent and
+exposes it as structured output. Anywhere a character needs to *stay itself* across a long
+interaction, and to be changed by what happens in it, is a candidate.
+
+**Game and virtual characters.** The state per (character, player) pair is fixed-size and
+independent of how long they've interacted — an NPC that remembers a betrayal from forty
+hours ago costs the same as one you just met. That property matters at multiplayer scale,
+where storing full interaction history per pair does not hold up.
+
+**Multi-agent and social simulation.** The paper's own domain. Bonds, grief propagation, and
+trait inheritance across generations emerge from the dynamics; nothing scripts them. Useful
+for modelling population-level psychological effects rather than individual behaviour.
+
+**Conversational agents.** State computed outside the language model, with the model
+generating *from* the state rather than inferring it from a transcript. Demonstrated in a live
+system ([meet.samskriti.app](https://meet.samskriti.app)) via a reduced Python port.
+
+**Social and assistive robotics.** A robot in a long-term domestic or care setting has the
+same problem: it should be shaped by months of interaction with a specific person, on hardware
+that can't hold that history in context. The state here is small, serialisable, and
+inspectable. *Untested in this domain — listed as a fit for the mechanism, not a demonstrated
+result.*
+
+**Interactive narrative.** Characters whose disposition toward the reader is computed from
+what actually happened, rather than branched from flags.
+
+A caveat worth stating plainly: these are **application domains, not validated markets**. The
+engine has been demonstrated in simulation (this repo, and the paper) and in one live
+conversational product. Everything else above is a reasoned fit, not evidence of adoption.
+
 ## Determinism
 
 Given a fixed seed the engine is bit-reproducible; `get_world_hash()` returns a checksum of
@@ -106,22 +167,31 @@ world state and the test suite asserts against a known value. This matters for t
 the character trajectory is a computed, replayable function of its experience history, not a
 sample from a distribution.
 
-## Scope, honestly
+## Open questions
 
-- **This is the research engine.** A reduced Python port drives a live conversational system
-  ([meet.samskriti.app](https://meet.samskriti.app)). The port carries the core
-  state-derived sensitivity formula and the samskara→vasana pipeline, but omits several
-  dynamical features present here — inter-rasa coupling, compound-emotion emergence,
-  per-rasa decay rates, and constitutional (guna) drift. Which of those are load-bearing for
-  character persistence is an open question and an active line of work.
-- **Figures are paper artifacts.** The run data behind them is not in this repository, so
-  `figures/` should be read as published results rather than as something the repo
-  regenerates end-to-end.
-- **The simulation harness is not included here.** This repo is the engine — the Godot
-  environment, world rendering, and chronicle generation used to produce the paper's runs
-  live separately.
-- Several constants are tuned by hand and documented as such in the source. They are
-  defensible but not derived.
+**Which dynamical features are load-bearing?** A reduced Python port of this engine runs the
+live conversational system linked above. It carries the state-derived sensitivity formula and
+the full samskara→vasana pipeline, but omits four things present here: inter-rasa coupling
+(18 relationships — wrath suppresses peace, courage counters fear), compound-emotion emergence
+(despair forming out of sustained grief and delusion), per-rasa decay rates, and
+constitutional guna drift over a lifetime.
+
+That makes this a natural ablation. Two working systems, shared lineage, one richer than the
+other — and an open question about how much of the richness character persistence actually
+requires. Not all of it transfers cleanly: guna drift in the simulation keys off world state
+(isolation, proximity to death) that has no analogue in a two-party conversation, so porting
+it means redefining what constitutional pressure means for a relationship rather than copying
+a function.
+
+## What this repo is and isn't
+
+- **Figures are published artifacts.** The run data behind them isn't included, so `figures/`
+  documents results rather than regenerating them end-to-end.
+- **This is the engine, not the harness.** The Godot environment, world rendering, and
+  chronicle generation used to produce the paper's runs live separately.
+- **Several constants are hand-tuned** and marked as such in the source. The rasa decay rates
+  follow the Natyashastra taxonomy; the coupling coefficients and thresholds were set by
+  observed behaviour, not derived.
 
 ## Citation
 
