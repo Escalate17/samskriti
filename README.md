@@ -162,16 +162,53 @@ forty-nine.
 
 That last loop is the reason character compounds instead of merely accumulating.
 
-## Build and run
+## Install
+
+### Python
+
+```bash
+pip install samskriti
+```
+
+Compiles the C++ engine and ships it inside the package — the Python API is a ctypes
+binding, not a reimplementation, so the full dynamics are present. No runtime dependencies.
+
+```python
+import samskriti as sk
+
+with sk.World(seed=1) as world:
+    npc, player = world.spawn(), world.spawn()
+    npc.move_to(0, 0, 0); player.move_to(1, 0, 0)
+
+    for _ in range(10):
+        npc.experience("helped", 0.7, source=player)
+        world.step()
+
+    print(npc.state)                     # dominant feeling, impressions, constitution
+    print(npc.behavior_toward(player))   # Behavior(action='approach_warm', tone='warm')
+    print(npc.voice_toward(player))      # tone/formality/colour for dialogue or an LLM
+```
+
+Runnable examples in [`examples/`](examples/): `quickstart.py`,
+`two_agents_diverge.py` (the core demonstration), `llm_companion.py`,
+`robot_companion.py`.
+
+> **One thing to know first.** Rasas decay every tick, so whether a disposition
+> accumulates or washes back to equilibrium depends on how often experience arrives
+> relative to how fast you call `step()`. Roughly one tick per event accumulates; four or
+> more idle ticks between events lets decay win and the agent returns to *shanta* (peace).
+> An agent left alone becomes calm — deliberate, but it means `step()` is a modelling dial
+> rather than a wall clock. See the note at the top of `examples/robot_companion.py`.
+
+### C / C++
 
 No dependencies beyond a C++17 compiler.
 
 ```bash
-# tests (32 assertions across emotional dynamics, bonds, determinism, dialogue)
+cd cpp
 clang++ -std=c++17 -O2 -Iinclude tests/test_samskriti.cpp src/*.cpp -o samskriti_tests
-./samskriti_tests
+./samskriti_tests            # 32 assertions
 
-# minimal example: 10 souls, one attack event, watch state diverge
 clang++ -std=c++17 -O2 -Iinclude examples/minimal.cpp src/*.cpp -o minimal
 ./minimal
 ```
@@ -179,9 +216,11 @@ clang++ -std=c++17 -O2 -Iinclude examples/minimal.cpp src/*.cpp -o minimal
 Or with CMake:
 
 ```bash
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build
+cd cpp && cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build
 ./build/samskriti_tests
 ```
+
+A Unity C# wrapper over the same C API lives in the simulation repository.
 
 ## API
 
@@ -208,12 +247,12 @@ sample from a distribution.
 
 ## What's in this repo
 
-- **`src/` + `include/`** — the engine: 23-rasa state, triguna sensitivity, coupling,
-  compound emergence, samskara/vasana formation, bonds, and world stepping. ~2,400 lines,
-  C++17, no dependencies.
-- **`tests/`** — 32 assertions covering emotional dynamics, bond formation, determinism, and
-  dialogue modifiers, plus a performance benchmark.
-- **`examples/minimal.cpp`** — ten souls, one event, watch state diverge.
+- **`cpp/`** — the engine: 23-rasa state, triguna sensitivity, coupling, compound
+  emergence, samskara/vasana formation, bonds, world stepping. ~2,400 lines, C++17,
+  no dependencies. Plus 32 tests, a benchmark, and `examples/minimal.cpp`.
+- **`samskriti/`** — the Python package: ctypes bindings over the same compiled engine.
+- **`examples/`** — Python examples, including the two-agent divergence demonstration.
+- **`tests/`** — Python tests: determinism, divergence, emergence, save/load round trip.
 - **`figures/`** — the published figures from the paper.
 
 The engine runs standalone. The Godot environment, world rendering, and chronicle generation
