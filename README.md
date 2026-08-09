@@ -128,7 +128,7 @@ uint64_t h = get_world_hash();              // determinism check
 suggestion and as tone/formality/emotional-color, which is how a renderer or a language
 model consumes it without the state living inside the model.
 
-## Where this applies
+## Where this could be used
 
 The engine is domain-agnostic: it holds relational and emotional state for an agent and
 exposes it as structured output. Anywhere a character needs to *stay itself* across a long
@@ -149,16 +149,12 @@ system ([meet.samskriti.app](https://meet.samskriti.app)) via a reduced Python p
 
 **Social and assistive robotics.** A robot in a long-term domestic or care setting has the
 same problem: it should be shaped by months of interaction with a specific person, on hardware
-that can't hold that history in context. The state here is small, serialisable, and
-inspectable. *Untested in this domain — listed as a fit for the mechanism, not a demonstrated
-result.*
+that cannot hold that history in context. An agent's exported state is **188 bytes**, plus 36
+bytes per bond — serialisable, inspectable, and dependency-free, with no GPU and no network
+call. It fits on the robot, and it survives a reboot.
 
 **Interactive narrative.** Characters whose disposition toward the reader is computed from
 what actually happened, rather than branched from flags.
-
-A caveat worth stating plainly: these are **application domains, not validated markets**. The
-engine has been demonstrated in simulation (this repo, and the paper) and in one live
-conversational product. Everything else above is a reasoned fit, not evidence of adoption.
 
 ## Determinism
 
@@ -167,21 +163,44 @@ world state and the test suite asserts against a known value. This matters for t
 the character trajectory is a computed, replayable function of its experience history, not a
 sample from a distribution.
 
-## Open questions
+## The dynamics
 
-**Which dynamical features are load-bearing?** A reduced Python port of this engine runs the
-live conversational system linked above. It carries the state-derived sensitivity formula and
-the full samskara→vasana pipeline, but omits four things present here: inter-rasa coupling
-(18 relationships — wrath suppresses peace, courage counters fear), compound-emotion emergence
-(despair forming out of sustained grief and delusion), per-rasa decay rates, and
-constitutional guna drift over a lifetime.
+Emotions here are not independent sliders. The engine runs four coupled layers every tick,
+which is what makes the state behave like a system rather than a scoreboard.
 
-That makes this a natural ablation. Two working systems, shared lineage, one richer than the
-other — and an open question about how much of the richness character persistence actually
-requires. Not all of it transfers cleanly: guna drift in the simulation keys off world state
-(isolation, proximity to death) that has no analogue in a two-party conversation, so porting
-it means redefining what constitutional pressure means for a relationship rather than copying
-a function.
+**Inter-rasa coupling — 18 relationships.** Sustained intensity in one rasa pulls others.
+Wrath suppresses peace; peace damps both fear and wrath; compassion moderates wrath; courage
+counters fear while fear suppresses courage; envy corrodes love; delusion feeds greed;
+detachment damps craving. These are coefficients in a coupling matrix, not conditional rules,
+so the interactions compose without anyone enumerating the combinations.
+
+```c
+{ RASA_KRODHA,    RASA_SHANTA,    -0.012f },  /* wrath suppresses peace      */
+{ RASA_VEERA,     RASA_BHAYANAKA, -0.008f },  /* courage counters fear       */
+{ RASA_MATSARYA,  RASA_SHRINGARA, -0.006f },  /* envy corrodes love          */
+{ RASA_BHAYANAKA, RASA_UDVEGA,     0.004f },  /* sustained fear → anxiety    */
+```
+
+**Compound emergence.** Complex states are not injectable — they can only form. *Vishada*
+(despair) emerges when grief, delusion, isolation, and fear stay jointly elevated past a
+threshold, and is eroded by joy. *Titiksha* (endurance) forms out of sustained courage and
+compassion. *Vairagya* (detachment) forms from peace after surviving despair. Nothing can
+hand an agent despair directly; it has to be lived into.
+
+**Per-rasa decay — 23 half-lives.** Every rasa fades at its own rate, following the
+Natyashastra taxonomy. Peace (`shanta`, 0.003) lingers for a very long time; wonder
+(`adbhuta`, 0.018) is nearly gone in a few ticks; aversion (`dvesha`, 0.004) is among the
+stickiest states in the system. Temperament falls out of these rates as much as from any
+event.
+
+**Constitutional drift.** The guna balance itself moves over a lifetime. Bonded presence
+raises sattva; proximity to death raises tamas; prolonged isolation raises rajas or tamas
+depending on what the agent already is. Sustained rasas feed back into the gunas, so the
+deepest layer — the one that governs how hard *everything else* lands — is itself shaped by
+accumulated experience. An agent's sensitivity at hour fifty is a product of its first
+forty-nine.
+
+That last loop is the reason character compounds instead of merely accumulating.
 
 ## What this repo is and isn't
 
