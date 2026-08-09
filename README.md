@@ -1,6 +1,6 @@
 # Samskriti — emotional state engine
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 [![C++17](https://img.shields.io/badge/C%2B%2B-17-blue.svg)](https://en.cppreference.com/w/cpp/17)
 [![Tests](https://img.shields.io/badge/tests-32%2F32-brightgreen.svg)](tests/test_samskriti.cpp)
 [![Paper](https://img.shields.io/badge/paper-10.5281%2Fzenodo.20531430-b31b1b.svg)](https://doi.org/10.5281/zenodo.20531430)
@@ -234,4 +234,11 @@ used to produce the paper's runs live separately.
 
 ## License
 
-MIT — see [LICENSE](LICENSE). The paper is CC-BY-4.0.
+Apache License 2.0 — see [LICENSE](LICENSE) and [NOTICE](NOTICE).
+
+Apache 2.0 rather than MIT for the express patent grant: contributors grant users a
+patent licence, and that grant terminates for anyone who initiates patent litigation over
+the work. Permissive in every practical sense — commercial use, modification, and
+redistribution are all allowed — with defensive patent terms MIT does not provide.
+
+The paper is CC-BY-4.0.
