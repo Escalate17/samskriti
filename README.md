@@ -24,44 +24,53 @@ is *computed*, as the residue of what an agent has lived through.
 The state model is drawn from classical Indian frameworks for emotional and behavioral
 dynamics, mapped onto computable quantities.
 
-### The four concepts, for readers new to them
+### The vocabulary
 
-These terms come from Indian philosophical traditions that model inner life differently from
-the way most Western computing does. The relevant difference: they treat the mind not as a
-single thing that *has* states, but as a **layered system in which states arise, interact,
-fade, and — if repeated — harden into disposition**. That is already a description of a
-dynamical system, which is why it ports to code unusually cleanly.
+Four concepts carry the model. Each names something English handles awkwardly or not at all,
+so the Sanskrit is kept and the meaning explained.
 
-**rasa** — *the felt quality of a state.* From the Natyashastra, a treatise on dramaturgy
-(roughly 200 BCE–200 CE) which catalogued the affective states a performance evokes. Rasa is
-not quite "emotion" in the English sense; it's closer to a distinct flavour of feeling, each
-with its own character and its own natural duration. Here: a **23-dimensional state vector**,
-each dimension decaying at its own rate — peace (`shanta`) fades slowly, wonder (`adbhuta`)
-fades fast.
+**rasa** — the felt quality of an emotional state.
 
-**guna** — *constitutional mode.* From Samkhya philosophy: three qualities said to compose
-all phenomena in varying proportion. **Sattva** (clarity, balance), **rajas** (activity,
-drive), **tamas** (inertia, density). These are not good/bad — they're modes, and every agent
-is a mixture. Here the guna vector acts as a **sensitivity multiplier**: it determines *how
-hard a given event lands*. A sattva-dominant agent and a tamas-dominant agent receiving the
-identical event end up in different states.
+Not emotion as a label but emotion as a *flavour*: the texture of wonder as distinct from joy,
+of grief as distinct from fear. The word means juice, or essence — what you actually taste of
+a feeling. Twenty-three of them here, each with its own natural lifespan. Peace (*shanta*)
+lingers a long time. Wonder (*adbhuta*) burns off fast. Aversion (*dvesha*) is among the most
+persistent states a mind can hold.
 
-**samskara** — *an impression left by experience.* Literally a groove or imprint. The idea is
-that experience doesn't just pass through; it deposits something that shapes what comes next.
-Here: a **stored trace** carrying valence, intensity, context, and the age at which it formed.
+**guna** — the underlying quality something is made of, in shifting proportion.
 
-**vasana** — *the tendency a samskara hardens into.* When similar impressions accumulate, they
-consolidate into a latent disposition that biases future behaviour without being consciously
-chosen — a habit, in the strict sense. Here: **clusters formed from repeated samskaras**, and
-they are what the engine reads when deciding how an agent is inclined to act.
+Three of them: *sattva* (clarity, lightness, balance), *rajas* (movement, drive,
+restlessness), *tamas* (weight, inertia, dullness). Not virtues and vices — closer to
+temperature or density. Every agent is a mixture, and the mixture decides how hard the world
+lands on them. The same event striking a light agent and a heavy one produces different
+states.
 
-The pipeline runs in that order: an event produces **rasa** movement, scaled by **guna**;
-the event deposits a **samskara**; repeated samskaras consolidate into **vasana**; vasana
-shapes how the next event is received.
+**samskara** — the mark an experience leaves behind.
 
-This is not decorative naming. Samskara and vasana are the actual data structures, the guna
-vector is a live term in the state-update equation, and the rasa decay table is taken from the
-Natyashastra taxonomy rather than invented.
+The image is a groove worn by repetition: a riverbed, a footpath across grass. Nothing passes
+through a mind without depositing something, and what it deposits shapes the course of
+whatever comes after.
+
+**vasana** — the tendency those marks harden into.
+
+When enough similar grooves accumulate they become a disposition — something an agent leans
+toward before anything has been decided. The nearest English word is *habit*, but vasana runs
+deeper than a repeated act. It is closer to the shape a person has taken.
+
+These come from a long tradition of thinking carefully about inner life: rasa from the
+**Natyashastra**, a treatise on drama and aesthetics compiled around two thousand years ago;
+the gunas from **Samkhya**, one of the classical schools of Indian philosophy; samskara and
+vasana from Yoga and Buddhist psychology. They repay reading on their own terms.
+
+What makes them useful for code is that they were never static categories. The tradition
+describes states arising, colouring one another, fading at different rates, and — through
+repetition — hardening into character. That is a dynamical system, described long before
+there was notation for one.
+
+The pipeline runs in that order: an event moves **rasa**, scaled by **guna**; the event
+deposits a **samskara**; repeated samskaras consolidate into **vasana**; vasana shapes how the
+next event is received. Samskara and vasana are the actual data structures, and the guna
+vector is a live term in the state-update equation — the naming is not decorative.
 
 **The central mechanism** is that event magnitude is derived from state rather than looked
 up in a table:
@@ -187,11 +196,10 @@ threshold, and is eroded by joy. *Titiksha* (endurance) forms out of sustained c
 compassion. *Vairagya* (detachment) forms from peace after surviving despair. Nothing can
 hand an agent despair directly; it has to be lived into.
 
-**Per-rasa decay — 23 half-lives.** Every rasa fades at its own rate, following the
-Natyashastra taxonomy. Peace (`shanta`, 0.003) lingers for a very long time; wonder
-(`adbhuta`, 0.018) is nearly gone in a few ticks; aversion (`dvesha`, 0.004) is among the
-stickiest states in the system. Temperament falls out of these rates as much as from any
-event.
+**Per-rasa decay — 23 half-lives.** Every rasa fades at its own rate. Peace (*shanta*, 0.003)
+lingers for a very long time; wonder (*adbhuta*, 0.018) is nearly gone in a few ticks;
+aversion (*dvesha*, 0.004) is among the stickiest states in the system. Temperament falls out
+of these rates as much as it does from any single event.
 
 **Constitutional drift.** The guna balance itself moves over a lifetime. Bonded presence
 raises sattva; proximity to death raises tamas; prolonged isolation raises rajas or tamas
@@ -202,15 +210,18 @@ forty-nine.
 
 That last loop is the reason character compounds instead of merely accumulating.
 
-## What this repo is and isn't
+## What's in this repo
 
-- **Figures are published artifacts.** The run data behind them isn't included, so `figures/`
-  documents results rather than regenerating them end-to-end.
-- **This is the engine, not the harness.** The Godot environment, world rendering, and
-  chronicle generation used to produce the paper's runs live separately.
-- **Several constants are hand-tuned** and marked as such in the source. The rasa decay rates
-  follow the Natyashastra taxonomy; the coupling coefficients and thresholds were set by
-  observed behaviour, not derived.
+- **`src/` + `include/`** — the engine: 23-rasa state, triguna sensitivity, coupling,
+  compound emergence, samskara/vasana formation, bonds, and world stepping. ~2,400 lines,
+  C++17, no dependencies.
+- **`tests/`** — 32 assertions covering emotional dynamics, bond formation, determinism, and
+  dialogue modifiers, plus a performance benchmark.
+- **`examples/minimal.cpp`** — ten souls, one event, watch state diverge.
+- **`figures/`** — the published figures from the paper.
+
+The engine runs standalone. The Godot environment, world rendering, and chronicle generation
+used to produce the paper's runs live separately.
 
 ## Citation
 
