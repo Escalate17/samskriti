@@ -1,0 +1,10 @@
+build/
+*.o
+*.a
+*.so
+*.dylib
+*.dll
+samskriti_tests
+bench_performance
+minimal
+.DS_Store
