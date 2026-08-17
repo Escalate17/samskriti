@@ -158,3 +158,30 @@ def test_agent_accepts_agent_or_int_as_source():
         a.experience("helped", 0.5, source=b.id)   # int
         w.step()
         assert a.state.samskara_count >= 1
+
+
+def test_load_restores_agents():
+    """world.load() used to leave world.agents empty — the C++ side restored the souls
+    but nothing rebuilt the Python list, so a loaded world looked like an empty one and
+    callers silently started over with a fresh agent."""
+    import os, tempfile
+    import samskriti as s
+
+    path = os.path.join(tempfile.mkdtemp(), "t.world")
+    w = s.World(seed=7)
+    a, b = w.spawn(), w.spawn()
+    for _ in range(12):
+        a.experience("helped", 0.7, source=b)
+        w.step()
+    before = (a.state.age, a.state.dominant, a.state.samskara_count,
+              round(a.state.rasa["shringara"], 6))
+    w.save(path)
+    w.close()
+
+    w2 = s.World(seed=7)
+    w2.load(path)
+    assert len(w2.agents) == 2, f"expected 2 agents after load, got {len(w2.agents)}"
+    r = w2.agents[0].state
+    assert (r.age, r.dominant, r.samskara_count, round(r.rasa["shringara"], 6)) == before
+    assert w2.agents[0].bond_with(w2.agents[1]).shared_experiences == 12
+    w2.close()

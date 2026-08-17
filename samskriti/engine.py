@@ -219,7 +219,28 @@ class World:
         lib.save_world(str(path).encode())
 
     def load(self, path: str) -> None:
+        """Restore a saved world, including its agents.
+
+        The C++ side restores souls on its own, but nothing was rebuilding the
+        Python-side list, so `world.agents` came back empty on a loaded world and
+        callers concluded the save had failed. Anything written as
+        `world.load(p); agent = world.agents[0]` raised IndexError; anything written
+        defensively as `agents[0] if agents else world.spawn()` silently started over
+        with a brand-new agent, which is worse — the save appears to work and the
+        history is quietly gone.
+
+        Souls are addressed by dense integer ids, and a dead slot reports
+        `is_alive == 0`, so scan upward until we've collected the count the engine
+        reports. The bound is a safety net against a corrupt count, not an agent cap.
+        """
         lib.load_world(str(path).encode())
+        self._agents.clear()
+        expected = int(lib.get_soul_count())
+        probe, limit = 0, max(expected * 4, expected + 1024)
+        while len(self._agents) < expected and probe < limit:
+            if lib.get_state(probe).is_alive:
+                self._agents.append(Agent(self, probe))
+            probe += 1
 
     def __len__(self) -> int:
         return int(lib.get_soul_count())
