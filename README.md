@@ -167,11 +167,15 @@ That last loop is the reason character compounds instead of merely accumulating.
 ### Python
 
 ```bash
-pip install samskriti
+pip install git+https://github.com/Escalate17/samskriti
 ```
 
 Compiles the C++ engine and ships it inside the package — the Python API is a ctypes
 binding, not a reimplementation, so the full dynamics are present. No runtime dependencies.
+
+<sub>Not on PyPI yet, so install from the repository for now; `pip install samskriti` will
+work once the name is claimed. The package itself is finished either way — the command
+above builds and runs the same artifact that will be uploaded.</sub>
 
 ```python
 import samskriti as sk
