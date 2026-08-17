@@ -46,6 +46,17 @@ static const float STHAYI_DECAY[RASA_COUNT] = {
     /* VAIRAGYA  */ 0.006f,
 };
 
+/* Decay for the four emergent rasas, indexed from RASA_UDVEGA. Roughly a tenth of
+   each one's formation coefficient, so a sustained condition accumulates but a
+   lapsed one still erodes. See the note in the decay loop for why these cannot
+   share STHAYI_DECAY. */
+static const float EMERGENT_DECAY[4] = {
+    /* UDVEGA    */ 0.0004f,   /* forms at bhayanaka * 0.004      */
+    /* VISHADA   */ 0.0008f,   /* forms at (cond - 0.5) * 0.008   */
+    /* TITIKSHA  */ 0.0006f,   /* forms at (cond - 0.4) * 0.006   */
+    /* VAIRAGYA  */ 0.0005f,   /* forms at (cond - 0.5) * 0.005   */
+};
+
 /* ── Rasa coupling coefficients ─────────────────────────────── */
 /* These are mathematical relationships between rasas, not rules.
  * They express: "sustained high X pulls Y in direction sign."     */
@@ -311,10 +322,24 @@ void soul_tick(Soul& s, float dt) {
     float coherence_stability = lerpf(0.5f, 1.5f, s.identity_coherence);
 
     /* ── 1. Rasa decay ─────────────────────────────────────── */
+    /* The four emergent rasas (UDVEGA..VAIRAGYA) decay on their own, far slower,
+       schedule. They are dispositions, not momentary feelings, and decaying a
+       disposition at a feeling's rate is a category error with a hard consequence:
+       at STHAYI_DECAY rates the decay term exceeds the maximum possible emergence
+       term every tick, so three of the four could never form in any world at any
+       timescale. Break-even conditions were 1.567 (titiksha), 1.700 (vairagya) and
+       bhayanaka=2.0 (udvega) against inputs clamped to 1.0.
+
+       These rates are ~1/10th of each rasa's formation coefficient, which restores
+       accumulation while keeping the property that matters: they still fade when
+       the conditions that grew them stop, so they must be SUSTAINED, not merely
+       touched once. */
     float tamas_decay_mod = 1.0f - tamas * 0.5f;  /* tamas → slower processing */
     for (int i = 0; i < RASA_COUNT; ++i) {
         if (i == RASA_SHANTA) continue;  /* shanta handled separately */
-        float effective_decay = STHAYI_DECAY[i] * coherence_stability * tamas_decay_mod;
+        float base = (i >= RASA_UDVEGA) ? EMERGENT_DECAY[i - RASA_UDVEGA]
+                                        : STHAYI_DECAY[i];
+        float effective_decay = base * coherence_stability * tamas_decay_mod;
         s.rasa[i] = std::max(0.0f, s.rasa[i] - dt * effective_decay);
     }
 

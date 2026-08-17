@@ -185,3 +185,51 @@ def test_load_restores_agents():
     assert (r.age, r.dominant, r.samskara_count, round(r.rasa["shringara"], 6)) == before
     assert w2.agents[0].bond_with(w2.agents[1]).shared_experiences == 12
     w2.close()
+
+
+def test_emergent_rasas_can_actually_form():
+    """All four emergent rasas were unreachable: they decayed at STHAYI (momentary
+    emotion) rates while forming at disposition rates, so for three of them the decay
+    term exceeded the maximum possible gain every tick — break-even conditions of
+    1.567, 1.700 and bhayanaka=2.0 against inputs clamped to 1.0."""
+    import samskriti as s
+
+    w = s.World(seed=5)
+    a = w.spawn(rasa={"bhayanaka": 0.3}, guna={"sattva": 0.3, "rajas": 0.4, "tamas": 0.3})
+    for t in range(1, 2001):
+        if t % 4 == 0:
+            a.experience(s.Experience("saw_threat", 0.8))
+        w.step()
+    assert a.state.rasa["udvega"] > 0.05, "udvega never formed under sustained threat"
+    w.close()
+
+    w = s.World(seed=5)
+    b = w.spawn(rasa={"veera": 0.4, "karuna": 0.4},
+                guna={"sattva": 0.6, "rajas": 0.3, "tamas": 0.1})
+    for t in range(1, 3001):
+        if t % 6 == 0:
+            b.experience(s.Experience("witnessed_death", 0.7))
+        if t % 9 == 0:
+            b.experience(s.Experience("discovery", 0.6))
+        w.step()
+    assert b.state.rasa["titiksha"] > 0.05, "titiksha never formed"
+    assert b.state.rasa["vishada"] > 0.05, "vishada never formed"
+    w.close()
+
+
+def test_emergent_rasas_still_fade():
+    """The fix must not make them permanent — a lapsed condition should still erode,
+    or 'sustained' stops meaning anything."""
+    import samskriti as s
+
+    w = s.World(seed=5)
+    a = w.spawn(rasa={"bhayanaka": 0.3}, guna={"sattva": 0.3, "rajas": 0.4, "tamas": 0.3})
+    for t in range(1, 2001):
+        if t % 4 == 0:
+            a.experience(s.Experience("saw_threat", 0.8))
+        w.step()
+    peak = a.state.rasa["udvega"]
+    for _ in range(4000):          # threat stops; nothing else happens
+        w.step()
+    assert a.state.rasa["udvega"] < peak, "udvega never faded once the threat stopped"
+    w.close()
