@@ -26,6 +26,11 @@ dependencies = []
 Homepage = "https://github.com/Escalate17/samskriti"
 Paper = "https://doi.org/10.5281/zenodo.20531430"
 
+[project.scripts]
+# One command after install. `samskriti` drops you straight into the interactive
+# session — evaluating an engine should not start with downloading a second file.
+samskriti = "samskriti.talk:main"
+
 [project.optional-dependencies]
 dev = ["pytest>=7"]
 
