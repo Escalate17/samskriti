@@ -59,14 +59,21 @@ CUES = [
     (("missed you", "you're back", "good to see"),              "reunion", 0.75),
     (("discovered", "figured out", "found out", "learned"),   "discovery", 0.60),
     (("beautiful", "peaceful", "sacred", "wonder"), "entered_sacred_space", 0.60),
+    # Ordinary contact. Small, but a greeting is not nothing — someone showed up.
+    (("how are you", "you okay", "what's up", "whats up", "how's it going",
+      "good morning", "good evening"),                            "helped", 0.25),
+    (("hi", "hey", "hello", "yo", "sup"),                          "helped", 0.20),
 ]
 
 
 def classify(text: str):
     low = text.lower()
+    # Short cues need word boundaries — "yo" was matching inside "how are you".
+    padded = f" {' '.join(low.split())} "
     for words, event, strength in CUES:
         for w in words:
-            if w in low:
+            hit = (f" {w} " in padded) if len(w) <= 3 else (w in low)
+            if hit:
                 # SHOUTING and !!! make it land harder — the only nuance in here.
                 emph = min(0.25, low.count("!") * 0.08)
                 if text.isupper() and len(text) > 6:
@@ -98,8 +105,12 @@ def main() -> None:
     history: dict[str, list] = {}
     turn = 0
 
-    print(__doc__.split("Commands:")[0].rstrip())
-    print("Commands:  :why <feeling>   :state   :quit\n")
+    print("\n  Talk to a character. It has no opinion of you yet.")
+    print("  Each turn shows what it read, what moved, and how it feels toward you.")
+    print("  Nothing is scripted — there is no dialogue tree and no model here.\n")
+    print("  :why <feeling>   where that feeling came from")
+    print("  :state           everything it feels")
+    print("  :quit\n")
     print(f"It doesn't know you yet. Say something.   [weight x{weight}]\n")
 
     while True:
@@ -140,8 +151,26 @@ def main() -> None:
 
         event, strength, cue = classify(text)
         if not event:
-            print("   READ    nothing it recognises — the classifier is 40 lines, "
-                  "read it and add a word\n")
+            # Not an error. Nothing emotionally salient happened, so no event fires —
+            # but time still passes, and watching feelings decay while you make small
+            # talk is the engine working, not the engine failing.
+            before = dict(them.state.rasa)
+            for _ in range(weight):
+                world.step()
+            after = them.state.rasa
+            faded = {k: after[k] - before[k] for k in after
+                     if abs(after[k] - before[k]) >= 0.001}
+            print("\n   READ    nothing salient — no event fires (the classifier is "
+                  "40 lines; add a word if you disagree)")
+            if faded:
+                top = sorted(faded.items(), key=lambda kv: -abs(kv[1]))[:4]
+                print("   FADED   " + "   ".join(f"{k} {d:+.3f}" for k, d in top)
+                      + "     time passed; feelings decay on their own")
+            else:
+                print("   FADED   nothing to fade yet")
+            f = them.behavior_toward(you)
+            print(f"   TOWARD  wants to {f.action}, tone {f.tone}, "
+                  f"warmth {f.warmth:+.2f}\n")
             continue
 
         turn += 1
