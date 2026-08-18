@@ -46,40 +46,61 @@ WEIGHT = 6
 # ── the deliberately-inspectable classifier ────────────────────────────────
 # word -> (event, how hard it lands). First match wins; longest phrases first.
 CUES = [
-    (("piece of shit", "fuck you", "i hate you", "worthless"), "attacked", 0.95),
-    (("betrayed", "lied to me", "you lied", "backstabbed"),    "betrayed", 0.90),
-    (("useless", "stupid", "pathetic", "idiot", "shut up"),    "attacked", 0.75),
-    (("hate", "awful", "terrible", "disappointing"),           "attacked", 0.55),
-    (("left me", "abandoned", "alone", "nobody"),              "abandoned", 0.70),
-    (("died", "death", "passed away", "funeral"),        "witnessed_death", 0.80),
-    (("scared", "afraid", "threat", "danger", "unsafe"),     "saw_threat", 0.65),
-    (("thank", "grateful", "appreciate", "you helped"),          "helped", 0.75),
-    (("love you", "adore", "means everything"),           "received_gift", 0.85),
-    (("gift", "present", "brought you", "for you"),                "gift", 0.70),
-    (("congrat", "celebrate", "we did it", "amazing"),  "celebrated_with", 0.70),
-    (("missed you", "you're back", "good to see"),              "reunion", 0.75),
-    (("discovered", "figured out", "found out", "learned"),   "discovery", 0.60),
-    (("beautiful", "peaceful", "sacred", "wonder"), "entered_sacred_space", 0.60),
-    # Ordinary contact. Small, but a greeting is not nothing — someone showed up.
+    #  cue words                                          event        strength  directed
+    (("piece of shit", "fuck you", "worthless"),        "attacked",       0.95, True),
+    (("betrayed", "lied to me", "you lied", "backstabbed"), "betrayed",   0.90, True),
+    (("useless", "stupid", "pathetic", "idiot", "shut up"), "attacked",   0.75, True),
+    (("hate", "awful", "terrible", "disappointing", "sick of"),
+                                                        "attacked",       0.55, True),
+    (("left me", "abandoned", "alone", "nobody", "no one"),
+                                                        "abandoned",      0.70, False),
+    (("died", "death", "passed away", "funeral"),  "witnessed_death",     0.80, False),
+    (("scared", "afraid", "threat", "danger", "unsafe"), "saw_threat",    0.65, False),
+    (("thank", "grateful", "appreciate", "you helped"),   "helped",       0.75, False),
+    (("love you", "adore", "means everything"),    "received_gift",       0.85, False),
+    (("gift", "present", "brought you", "for you"),         "gift",       0.70, False),
+    (("congrat", "celebrate", "we did it", "amazing", "i like this", "this is good"),
+                                                 "celebrated_with",       0.60, False),
+    (("missed you", "you're back", "good to see"),       "reunion",       0.75, False),
+    (("discovered", "figured out", "found out", "learned", "interesting"),
+                                                       "discovery",       0.60, False),
+    (("beautiful", "peaceful", "sacred", "wonder"), "entered_sacred_space", 0.60, False),
     (("how are you", "you okay", "what's up", "whats up", "how's it going",
-      "good morning", "good evening"),                            "helped", 0.25),
-    (("hi", "hey", "hello", "yo", "sup"),                          "helped", 0.20),
+      "good morning", "good evening"),                    "helped",       0.25, False),
+    (("hi", "hey", "hello", "yo", "sup"),                 "helped",       0.20, False),
 ]
+
+
+# Who is it aimed at? "I hate you" and "I hate my friends" are the same words carrying
+# opposite meanings — one is an attack, the other is someone confiding pain. Reading both
+# as an attack made the character defensive toward a person who was trusting her, which
+# is worse than reading nothing at all.
+AT_HER = (" you ", " you.", " you!", " you?", " your ", " yours", " u ", " ur ")
+
+
+def _aimed_at_her(padded: str) -> bool:
+    return any(m in padded for m in AT_HER)
 
 
 def classify(text: str):
     low = text.lower()
     # Short cues need word boundaries — "yo" was matching inside "how are you".
     padded = f" {' '.join(low.split())} "
-    for words, event, strength in CUES:
+    for words, event, strength, directed in CUES:
         for w in words:
             hit = (f" {w} " in padded) if len(w) <= 3 else (w in low)
-            if hit:
-                # SHOUTING and !!! make it land harder — the only nuance in here.
-                emph = min(0.25, low.count("!") * 0.08)
-                if text.isupper() and len(text) > 6:
-                    emph += 0.15
-                return event, min(1.0, strength + emph), w
+            if not hit:
+                continue
+            # SHOUTING and !!! make it land harder — the only nuance in here.
+            emph = min(0.25, low.count("!") * 0.08)
+            if text.isupper() and len(text) > 6:
+                emph += 0.15
+            if directed and not _aimed_at_her(padded):
+                # The hurt is real but it is not about her. She hears someone she knows
+                # in pain, which the engine models as witnessing harm: compassion and
+                # some distress, not defence.
+                return "witnessed_death", min(1.0, strength * 0.7 + emph), w + " (not at her)"
+            return event, min(1.0, strength + emph), w
     return None, 0.0, None
 
 
